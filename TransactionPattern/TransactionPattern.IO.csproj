@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<RootNamespace>TransactionPattern.IO</RootNamespace>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\TransactionPattern.Application\TransactionPattern.Application.csproj" />
+	  <ProjectReference Include="..\TransactionPattern.Infrastructure\TransactionPattern.Infrastructure.csproj" />
+	</ItemGroup>
+
+</Project>
