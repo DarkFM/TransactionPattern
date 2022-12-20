@@ -16,7 +16,7 @@ public class SaveToDatabase : TransactionAction<TransactionContext>
     {
         if (Random.Shared.Next(10) > 8)
         {
-            Console.WriteLine("Saving to database, File: {0} with GssId: {1}", context.FilePath, context.GssId);
+            Console.WriteLine("Saving to database, File: {0} with ApiSerivceId: {1}", context.FilePath, context.SerivceId);
             context.DatabaseId = Guid.NewGuid();
             return Result.Success();
         }
