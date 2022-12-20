@@ -17,15 +17,15 @@ public class RegisterWithApi : TransactionAction<TransactionContext>
     {
         if (Random.Shared.Next(10) > 5)
         {
-            context.GssId = Guid.NewGuid();
-            ApiServiceId = context.GssId;
+            context.SerivceId = Guid.NewGuid();
+            ApiServiceId = context.SerivceId;
 
             Console.WriteLine("Successful service registration: " + ApiServiceId);
             return Result.Success();
         }
         else
         {
-            return Result.Failed(new ResultError("Error Registering with GSS"));
+            return Result.Failed(new ResultError("Error Registering with ApiSerivce"));
         }
     }
 
