@@ -36,16 +36,16 @@ public class RegisterResourceUseCase
     }
 }
 
-public record TestUseCaseResult(Guid GssId, string GdsPath, Guid ResourceId);
+public record TestUseCaseResult(Guid ApiServiceId, string ResourcePath, Guid ResourceId);
 
 public record TransactionContext : ITransactionContext<Result<TestUseCaseResult>>
 {
-    public Guid GssId { get; set; }
+    public Guid SerivceId { get; set; }
     public string FilePath { get; set; } = string.Empty;
     public Guid DatabaseId { get; set; }
 
     public Result<TestUseCaseResult> GetResult()
     {
-        return Result<TestUseCaseResult>.Success(new TestUseCaseResult(GssId, "gds://" + FilePath, DatabaseId));
+        return Result<TestUseCaseResult>.Success(new TestUseCaseResult(ApiServiceId, "resource://" + ResourcePath, DatabaseId));
     }
 }
