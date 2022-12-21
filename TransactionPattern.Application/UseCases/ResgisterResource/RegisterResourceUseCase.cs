@@ -46,6 +46,6 @@ public record TransactionContext : ITransactionContext<Result<TestUseCaseResult>
 
     public Result<TestUseCaseResult> GetResult()
     {
-        return Result<TestUseCaseResult>.Success(new TestUseCaseResult(ApiServiceId, "resource://" + ResourcePath, DatabaseId));
+        return Result<TestUseCaseResult>.Success(new TestUseCaseResult(SerivceId, "resource://" + FilePath, DatabaseId));
     }
 }
