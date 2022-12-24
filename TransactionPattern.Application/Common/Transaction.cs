@@ -10,19 +10,21 @@ public class Transaction<TContext>
     public Transaction(TContext context, IEnumerable<TransactionAction<TContext>> actions)
     {
         Context = context;
-        Actions = new(actions);
+        StagedActions = new(actions);
+        CompletedActions= new();
     }
 
     protected TContext Context { get; }
-    protected LinkedList<TransactionAction<TContext>> Actions { get; }
+    protected Queue<TransactionAction<TContext>> StagedActions { get; }
+    protected Stack<TransactionAction<TContext>> CompletedActions { get; }
 
     public virtual Result Execute()
     {
-        var (lastnode, isSuccess) = ExecuteActions();
-        if (isSuccess is false)
+        ExecuteActions();
+        if (StagedActions.Any())
         {
-            Undo(lastnode.Previous);
-            return Result.Failed(CollectError(lastnode));
+            Undo();
+            return Result.Failed(StagedActions.Dequeue().ExecutionResult.Errors.ToArray());
         }
         else
         {
@@ -30,34 +32,16 @@ public class Transaction<TContext>
         }
     }
 
-    protected (LinkedListNode<TransactionAction<TContext>>? LastNode, bool IsSuccess) ExecuteActions()
+    protected void ExecuteActions()
     {
-        LinkedListNode<TransactionAction<TContext>>? currentNode = Actions.First;
-        LinkedListNode<TransactionAction<TContext>>? previousNode = currentNode;
-
-        while (currentNode != null)
+        while (StagedActions.Any())
         {
-            previousNode = currentNode;
-            if (HandleAction(currentNode.Value) is false)
-                return (currentNode, false);
-
-            currentNode = currentNode.Next;
+            var action = StagedActions.Peek();
+            if (HandleAction(action) is false)
+                break;
+            
+            CompletedActions.Push(StagedActions.Dequeue());
         }
-
-        // if successful completed, then this will be the last node
-        return (previousNode, true);
-    }
-
-    protected static ResultError[] CollectError(LinkedListNode<TransactionAction<TContext>>? node)
-    {
-        var errors = new List<ResultError>();
-        while (node != null)
-        {
-            errors.AddRange(node.Value.ExecutionResult.Errors);
-            node = node.Previous;
-        }
-
-        return errors.ToArray();
     }
 
     private bool HandleAction(TransactionAction<TContext> transactionAction)
@@ -74,13 +58,10 @@ public class Transaction<TContext>
         return result.Succeeded;
     }
 
-    protected void Undo(LinkedListNode<TransactionAction<TContext>>? node)
+    protected void Undo()
     {
-        while (node != null)
-        {
-            node.Value.Undo(Context);
-            node = node.Previous;
-        }
+        while (CompletedActions.Any())
+            CompletedActions.Pop().Undo(Context);
     }
 }
 
@@ -99,11 +80,11 @@ public class Transaction<TContext, TValue> : Transaction<TContext>
 
     public override Result<TValue> Execute()
     {
-        var (lastnode, isSuccess) = ExecuteActions();
-        if (isSuccess is false)
+        ExecuteActions();
+        if (StagedActions.Any())
         {
-            Undo(lastnode.Previous);
-            return Result<TValue>.Failed(CollectError(lastnode));
+            Undo();
+            return Result<TValue>.Failed(StagedActions.Dequeue().ExecutionResult.Errors.ToArray());
         }
         else
         {
@@ -111,4 +92,3 @@ public class Transaction<TContext, TValue> : Transaction<TContext>
         }
     }
 }
-
