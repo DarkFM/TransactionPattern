@@ -1,6 +1,6 @@
 ﻿using TransactionPattern.Application.Common;
 
-namespace TransactionPattern.Application.UseCases.ResgisterResource;
+namespace TransactionPattern.Application.UseCases.RegisterResource;
 
 public class RegisterWithApi : TransactionAction<TransactionContext>
 {
@@ -25,20 +25,13 @@ public class RegisterWithApi : TransactionAction<TransactionContext>
         }
         else
         {
-            return Result.Failed(new ResultError("Error Registering with ApiSerivce"));
+            var ex = new RegisterResourceException("Error Registering with ApiSerivce", RegisterResourceError.ApiError);
+            return Result.Failed(new ResultError(ex.Message, ex));
         }
     }
 
-    protected override Result UndoAction(TransactionContext context)
+    protected override void UndoAction(TransactionContext context)
     {
-        Console.WriteLine("Removing " + ApiServiceId);
-        if (Random.Shared.Next(10) > 5)
-        {
-            return Result.Success();
-        }
-        else
-        {
-            return Result.Failed(new ResultError("Error unregistering with api service"));
-        }
+        Console.WriteLine("UnRegistering resource from api: " + ApiServiceId);
     }
 }

@@ -10,26 +10,54 @@ public class Transaction<TContext>
     public Transaction(TContext context, IEnumerable<TransactionAction<TContext>> actions)
     {
         Context = context;
-        Actions = actions;
+        Actions = new(actions);
     }
 
     protected TContext Context { get; }
-    protected IEnumerable<TransactionAction<TContext>> Actions { get; }
+    protected LinkedList<TransactionAction<TContext>> Actions { get; }
 
     public virtual Result Execute()
     {
-        var actions = Actions.ToArray();
-        for (int i = 0; i < actions.Length; i++)
+        var (lastnode, isSuccess) = ExecuteActions();
+        if (isSuccess is false)
         {
-            if (HandleAction(actions[i]) is false)
-            {
-                Undo(Math.Max(0, i - 1));
-                var errors = actions.SelectMany(a => a.ExecutionResult.Errors).ToArray();
-                return Result.Failed(errors);
-            }
+            Undo(lastnode.Previous);
+            return Result.Failed(CollectError(lastnode));
+        }
+        else
+        {
+            return Result.Success();
+        }
+    }
+
+    protected (LinkedListNode<TransactionAction<TContext>>? LastNode, bool IsSuccess) ExecuteActions()
+    {
+        LinkedListNode<TransactionAction<TContext>>? currentNode = Actions.First;
+        LinkedListNode<TransactionAction<TContext>>? previousNode = currentNode;
+
+        while (currentNode != null)
+        {
+            previousNode = currentNode;
+            if (HandleAction(currentNode.Value) is false)
+                return (currentNode, false);
+
+            currentNode = currentNode.Next;
         }
 
-        return Result.Success();
+        // if successful completed, then this will be the last node
+        return (previousNode, true);
+    }
+
+    protected static ResultError[] CollectError(LinkedListNode<TransactionAction<TContext>>? node)
+    {
+        var errors = new List<ResultError>();
+        while (node != null)
+        {
+            errors.AddRange(node.Value.ExecutionResult.Errors);
+            node = node.Previous;
+        }
+
+        return errors.ToArray();
     }
 
     private bool HandleAction(TransactionAction<TContext> transactionAction)
@@ -46,12 +74,12 @@ public class Transaction<TContext>
         return result.Succeeded;
     }
 
-    private void Undo(int index)
+    protected void Undo(LinkedListNode<TransactionAction<TContext>>? node)
     {
-        var actions = Actions.ToArray();
-        for (; index >= 0; index--)
+        while (node != null)
         {
-            actions[index].Undo(Context);
+            node.Value.Undo(Context);
+            node = node.Previous;
         }
     }
 }
@@ -59,7 +87,6 @@ public class Transaction<TContext>
 public class Transaction<TContext, TValue> : Transaction<TContext>
     where TContext : ITransactionContext<Result<TValue>>
 {
-
     public static Transaction<TContext, TValue> Create(
         TContext context, IEnumerable<TransactionAction<TContext>> actions)
     {
@@ -70,77 +97,17 @@ public class Transaction<TContext, TValue> : Transaction<TContext>
     {
     }
 
-    public Result<TValue> Execute()
+    public override Result<TValue> Execute()
     {
-        var actions = Actions.ToArray();
-        for (int i = 0; i < actions.Length; i++)
+        var (lastnode, isSuccess) = ExecuteActions();
+        if (isSuccess is false)
         {
-            if (HandleAction(actions[i]) is false)
-            {
-                Undo(Math.Max(0, i - 1));
-                var errors = actions.SelectMany(a => a.ExecutionResult.Errors).ToArray();
-                return Result<TValue>.Failed(errors);
-            }
+            Undo(lastnode.Previous);
+            return Result<TValue>.Failed(CollectError(lastnode));
         }
-
-        return Context.GetResult();
-    }
-
-    private bool HandleAction(TransactionAction<TContext> transactionAction)
-    {
-        int retryCount = 3;
-        Result result;
-        do
+        else
         {
-            Console.WriteLine($"Attempt {4 - retryCount} for {transactionAction.GetType().Name}");
-            result = transactionAction.Execute(Context);
-
-        } while (result.Succeeded is false && --retryCount >= 0);
-
-        return result.Succeeded;
-    }
-
-    private void Undo(int index)
-    {
-        var actions = Actions.ToArray();
-        for (; index >= 0; index--)
-        {
-            actions[index].Undo(Context);
-        }
-    }
-}
-
-
-public abstract class TransactionAction<TContext>
-{
-    public Result ExecutionResult { get; private set; } = Result.Failed();
-
-    protected abstract Result ExecuteAction(TContext context);
-    protected abstract Result UndoAction(TContext context);
-
-    public Result Execute(TContext context)
-    {
-        if (ExecutionResult is not null and { Succeeded: true })
-            return ExecutionResult;
-
-        try
-        {
-            return ExecutionResult = ExecuteAction(context);
-        }
-        catch (Exception ex)
-        {
-            return Result.Failed(new ResultError(ex.Message, ex));
-        }
-    }
-
-    public void Undo(TContext context)
-    {
-        try
-        {
-            UndoAction(context);
-        }
-        catch (Exception)
-        {
+            return Context.GetResult();
         }
     }
 }

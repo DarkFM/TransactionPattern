@@ -1,7 +1,7 @@
 ﻿using TransactionPattern.Application.Common;
 using TransactionPattern.Infrastructure;
 
-namespace TransactionPattern.Application.UseCases.ResgisterResource;
+namespace TransactionPattern.Application.UseCases.RegisterResource;
 
 public class SaveToDatabase : TransactionAction<TransactionContext>
 {
@@ -14,7 +14,7 @@ public class SaveToDatabase : TransactionAction<TransactionContext>
 
     protected override Result ExecuteAction(TransactionContext context)
     {
-        if (Random.Shared.Next(10) > 8)
+        if (Random.Shared.Next(10) > 7)
         {
             Console.WriteLine("Saving to database, File: {0} with ApiSerivceId: {1}", context.FilePath, context.SerivceId);
             context.DatabaseId = Guid.NewGuid();
@@ -22,25 +22,22 @@ public class SaveToDatabase : TransactionAction<TransactionContext>
         }
         else
         {
-            return Result.Failed(new ResultError("Error saving to database."));
+            var ex = new RegisterResourceException("Error saving to database.", RegisterResourceError.Unexpected);
+            return Result.Failed(new ResultError(ex.Message, ex));
         }
     }
 
-    protected override Result UndoAction(TransactionContext context)
+    protected override void UndoAction(TransactionContext context)
     {
 
         Console.WriteLine("Removing from database");
-        if (Random.Shared.Next(20) > 14)
-        {
-            return Result.Success();
-        }
-        else if (Random.Shared.Next(20) > 8)
+        if (Random.Shared.Next(20) > 12)
         {
             throw new Exception("Error undoing Save to database");
         }
-        else
+        else if (Random.Shared.Next(20) > 7)
         {
-            return Result.Failed(new ResultError("Error removing database"));
+            throw new Exception("Error removing database");
         }
     }
 }

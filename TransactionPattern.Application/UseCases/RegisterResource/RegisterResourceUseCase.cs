@@ -1,7 +1,7 @@
 ﻿using TransactionPattern.Application.Common;
 using TransactionPattern.Infrastructure;
 
-namespace TransactionPattern.Application.UseCases.ResgisterResource;
+namespace TransactionPattern.Application.UseCases.RegisterResource;
 
 public class RegisterResourceUseCase
 {
@@ -16,7 +16,11 @@ public class RegisterResourceUseCase
         this.dataRepository = dataRepository;
     }
 
-    public TestUseCaseResult? Execute()
+    private IOutputPort OutputPort { get; set; }
+
+    public void SetOutputPort(IOutputPort outputPort) => OutputPort = outputPort;
+
+    public void Execute()
     {
         var registerGssAction = new RegisterWithApi(httpClient);
         var saveToDiskAction = new SaveToDisk(fileInfo);
@@ -29,10 +33,35 @@ public class RegisterResourceUseCase
 
         if (result.Succeeded)
         {
-            return result.Value;
+            OutputPort.Success(result.Value!);
         }
-
-        throw new Exception(result.Errors.Aggregate("", (s, v) => s + Environment.NewLine + v.Message));
+        else
+        {
+            var error = result.Errors.Single();
+            if (error.Exception is RegisterResourceException ex)
+            {
+                switch (ex.ErrorType)
+                {
+                    case RegisterResourceError.ApiError:
+                        OutputPort.ApiError(409); // Ideally we will pass the Api status code down to this
+                        break;
+                    case RegisterResourceError.Conflict:
+                        OutputPort.Conflict(ex.Message);
+                        break;
+                    case RegisterResourceError.NotAllowed:
+                        OutputPort.NotAllowed();
+                        break;
+                    case RegisterResourceError.Unexpected:
+                    default:
+                        OutputPort.Unexpected(ex.Message);
+                        break;
+                }
+            }
+            else
+            {
+                OutputPort.Unexpected(error.Message);
+            }
+        }
     }
 }
 
