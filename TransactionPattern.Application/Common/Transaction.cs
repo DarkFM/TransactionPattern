@@ -1,36 +1,24 @@
 ﻿namespace TransactionPattern.Application.Common;
 
-public interface ITransactionContext<out T> where T : Result
+public interface ITransactionContext<out T> where T : ResultBase
 {
     public T GetResult();
 }
 
-public class Transaction<TContext>
+public abstract class TransactionBase<TContext>
 {
-    public Transaction(TContext context, IEnumerable<TransactionAction<TContext>> actions)
+    protected TransactionBase(TContext context, IEnumerable<TransactionAction<TContext>> stagedActions)
     {
         Context = context;
-        StagedActions = new(actions);
-        CompletedActions= new();
+        CompletedActions = new Stack<TransactionAction<TContext>>();
+        StagedActions = new Queue<TransactionAction<TContext>>(stagedActions);
     }
 
-    protected TContext Context { get; }
-    protected Queue<TransactionAction<TContext>> StagedActions { get; }
     protected Stack<TransactionAction<TContext>> CompletedActions { get; }
+    protected Queue<TransactionAction<TContext>> StagedActions { get; }
+    protected TContext Context { get; }
 
-    public virtual Result Execute()
-    {
-        ExecuteActions();
-        if (StagedActions.Any())
-        {
-            Undo();
-            return Result.Failed(StagedActions.Dequeue().ExecutionResult.Errors.ToArray());
-        }
-        else
-        {
-            return Result.Success();
-        }
-    }
+    public abstract ResultBase Execute();
 
     protected void ExecuteActions()
     {
@@ -39,9 +27,15 @@ public class Transaction<TContext>
             var action = StagedActions.Peek();
             if (HandleAction(action) is false)
                 break;
-            
+
             CompletedActions.Push(StagedActions.Dequeue());
         }
+    }
+
+    protected void Undo()
+    {
+        while (CompletedActions.Any())
+            CompletedActions.Pop().Undo(Context);
     }
 
     private bool HandleAction(TransactionAction<TContext> transactionAction)
@@ -57,15 +51,31 @@ public class Transaction<TContext>
 
         return result.Succeeded;
     }
+}
 
-    protected void Undo()
+public class Transaction<TContext> : TransactionBase<TContext>
+{
+    public Transaction(TContext context, IEnumerable<TransactionAction<TContext>> actions)
+        : base(context, actions)
     {
-        while (CompletedActions.Any())
-            CompletedActions.Pop().Undo(Context);
+    }
+
+    public override Result Execute()
+    {
+        ExecuteActions();
+        if (StagedActions.Any())
+        {
+            Undo();
+            return Result.Failed(StagedActions.Dequeue().ExecutionResult.Errors.ToArray());
+        }
+        else
+        {
+            return Result.Success();
+        }
     }
 }
 
-public class Transaction<TContext, TValue> : Transaction<TContext>
+public class Transaction<TContext, TValue> : TransactionBase<TContext>
     where TContext : ITransactionContext<Result<TValue>>
 {
     public static Transaction<TContext, TValue> Create(
@@ -74,7 +84,8 @@ public class Transaction<TContext, TValue> : Transaction<TContext>
         return new Transaction<TContext, TValue>(context, actions);
     }
 
-    public Transaction(TContext context, IEnumerable<TransactionAction<TContext>> actions) : base(context, actions)
+    public Transaction(TContext context, IEnumerable<TransactionAction<TContext>> actions) 
+        : base(context, actions)
     {
     }
 

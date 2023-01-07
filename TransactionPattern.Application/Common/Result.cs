@@ -2,23 +2,23 @@
 
 namespace TransactionPattern.Application.Common;
 
-public abstract record Result
+public abstract record ResultBase
 {
-    public abstract bool Succeeded { get; }
-    public virtual IImmutableList<ResultError> Errors { get; protected set; } = ImmutableArray<ResultError>.Empty;
+    public virtual bool Succeeded { get; }
+    public IImmutableList<ResultError> Errors { get; protected set; } = ImmutableArray<ResultError>.Empty;
+}
 
-
+public abstract record Result : ResultBase
+{
     public static Result Success()
     {
         return new SuccessfulResult();
     }
 
-
     public static Result Failed(params ResultError[] errors)
     {
         return new FailedResult(errors);
     }
-
 
     private record SuccessfulResult : Result
     {
@@ -37,7 +37,7 @@ public abstract record Result
 }
 
 
-public abstract record Result<T> : Result
+public abstract record Result<T> : ResultBase
 {
     public virtual T? Value { get; private set; }
 
