@@ -1,8 +1,13 @@
 ﻿namespace TransactionPattern.Application.Common;
 
-public interface ITransactionContext<out T> where T : ResultBase
+public interface ITransactionContext<out T, U> where T : Result<U>
 {
     public T GetResult();
+
+}
+
+public interface ITransactionContext<U>: ITransactionContext<Result<U>, U>
+{
 }
 
 public abstract class TransactionBase<TContext>
@@ -76,7 +81,7 @@ public class Transaction<TContext> : TransactionBase<TContext>
 }
 
 public class Transaction<TContext, TValue> : TransactionBase<TContext>
-    where TContext : ITransactionContext<Result<TValue>>
+    where TContext : ITransactionContext<TValue>
 {
     public static Transaction<TContext, TValue> Create(
         TContext context, IEnumerable<TransactionAction<TContext>> actions)

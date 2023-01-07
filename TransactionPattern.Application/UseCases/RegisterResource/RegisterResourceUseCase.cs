@@ -67,7 +67,7 @@ public class RegisterResourceUseCase
 
 public record TestUseCaseResult(Guid ApiServiceId, string ResourcePath, Guid ResourceId);
 
-public record TransactionContext : ITransactionContext<Result<TestUseCaseResult>>
+public record TransactionContext : ITransactionContext<TestUseCaseResult>
 {
     public Guid SerivceId { get; set; }
     public string FilePath { get; set; } = string.Empty;
